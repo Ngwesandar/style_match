@@ -582,4 +582,50 @@ class ApiService {
     }
     return null;
   }
+
+  /// Classify clothing occasion using the backend Decision Tree Machine Learning algorithm
+  static Future<Map<String, dynamic>?> classifyOccasion({
+    required String category,
+    String subcategory = "",
+    String season = "All Season",
+    String color = "Mixed",
+    int? itemId,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse("$baseUrl/ml/classify"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "category": category,
+          "subcategory": subcategory,
+          "season": season,
+          "color": color,
+          "item_id": itemId,
+        }),
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (e) {
+      debugPrint("ClassifyOccasion API Error: $e");
+    }
+    return null;
+  }
+
+  /// Fetch Decision Tree model metadata and evaluation statistics
+  static Future<Map<String, dynamic>?> getMLModelInfo() async {
+    try {
+      final response = await http.get(
+        Uri.parse("$baseUrl/ml/model-info"),
+        headers: {"Content-Type": "application/json"},
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (e) {
+      debugPrint("GetMLModelInfo API Error: $e");
+    }
+    return null;
+  }
 }
+

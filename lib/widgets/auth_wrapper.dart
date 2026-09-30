@@ -3,27 +3,49 @@ import 'package:style_match/screen/home_screen.dart';
 import 'package:style_match/screen/login_screen.dart';
 import 'package:style_match/services/auth_service.dart';
 
-class AuthWrapper extends StatelessWidget {
+class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
-      future: AuthService.isLoggedIn(),
-      builder: (context, snapshot) {
-        // While checking the session, show a branded splash state.
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const _SplashScreen();
-        }
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
 
-        // If logged in, go to Home. Otherwise, show Login.
-        if (snapshot.data == true) {
-          return const HomeScreen();
-        } else {
-          return const LoginScreen();
-        }
-      },
-    );
+class _AuthWrapperState extends State<AuthWrapper> {
+  bool _isLoading = true;
+  bool _isLoggedIn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkSessionAndLaunch();
+  }
+
+  Future<void> _checkSessionAndLaunch() async {
+    // Run session check and minimum branded splash duration in parallel
+    final results = await Future.wait([
+      AuthService.isLoggedIn(),
+      Future.delayed(const Duration(milliseconds: 1400)),
+    ]);
+
+    if (!mounted) return;
+
+    setState(() {
+      _isLoggedIn = results[0] as bool;
+      _isLoading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const _SplashScreen();
+    }
+
+    if (_isLoggedIn) {
+      return const HomeScreen();
+    } else {
+      return const LoginScreen();
+    }
   }
 }
 
@@ -64,6 +86,25 @@ class _SplashScreen extends StatelessWidget {
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF171717),
                 letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "Your Personal AI Stylist",
+              style: TextStyle(
+                fontSize: 14,
+                color: Color(0xFF737373),
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0.2,
+              ),
+            ),
+            const SizedBox(height: 32),
+            const SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: Color(0xFF0F766E),
               ),
             ),
           ],

@@ -1,0 +1,74 @@
+{
+  "algorithm": "Decision Tree Classifier",
+  "library": "scikit-learn",
+  "criterion": "gini",
+  "max_depth": "None (unconstrained pure leaves)",
+  "min_samples_split": 2,
+  "min_samples_leaf": 1,
+  "features": [
+    "category",
+    "subcategory",
+    "season",
+    "color"
+  ],
+  "target_classes": [
+    "Casual",
+    "Formal",
+    "Party"
+  ],
+  "dataset_size": 1394,
+  "train_samples": 1115,
+  "test_samples": 279,
+  "train_accuracy": 1.0,
+  "test_accuracy": 0.9427,
+  "classification_report": {
+    "Casual": {
+      "precision": 0.9465648854961832,
+      "recall": 0.9612403100775194,
+      "f1-score": 0.9538461538461539,
+      "support": 129.0
+    },
+    "Formal": {
+      "precision": 0.9102564102564102,
+      "recall": 0.9861111111111112,
+      "f1-score": 0.9466666666666667,
+      "support": 72.0
+    },
+    "Party": {
+      "precision": 0.9714285714285714,
+      "recall": 0.8717948717948718,
+      "f1-score": 0.918918918918919,
+      "support": 78.0
+    },
+    "accuracy": 0.942652329749104,
+    "macro avg": {
+      "precision": 0.942749955727055,
+      "recall": 0.9397154309945007,
+      "f1-score": 0.9398105798105799,
+      "support": 279.0
+    },
+    "weighted avg": {
+      "precision": 0.9441460944046515,
+      "recall": 0.942652329749104,
+      "f1-score": 0.9422287796481347,
+      "support": 279.0
+    }
+  },
+  "confusion_matrix": [
+    [
+      124,
+      4,
+      1
+    ],
+    [
+      0,
+      71,
+      1
+    ],
+    [
+      7,
+      3,
+      68
+    ]
+  ]
+}

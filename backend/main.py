@@ -1,13 +1,14 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+
 from app.database import engine, Base
-from app.routes import auth, profile, wardrobe, ai
+from app.routes import auth, profile, wardrobe, ai, ml
 
 # Ensure all database tables are created (using existing users.db)
 Base.metadata.create_all(bind=engine)
 
-# Add tags and avatar_url columns if they do not exist
+# Add tags, avatar_url, stylist_note, and ML columns if they do not exist
 try:
     from sqlalchemy import text
     with engine.connect() as conn:
@@ -18,6 +19,7 @@ try:
             conn.execute(text("ALTER TABLE saved_outfits ADD COLUMN tags TEXT"))
             conn.commit()
             print("Successfully added 'tags' column to 'saved_outfits' table.")
+
         # Check users table
         result_users = conn.execute(text("PRAGMA table_info(users)"))
         columns_users = [row[1] for row in result_users.fetchall()]
@@ -33,13 +35,21 @@ try:
             conn.execute(text("ALTER TABLE clothing_items ADD COLUMN stylist_note TEXT"))
             conn.commit()
             print("Successfully added 'stylist_note' column to 'clothing_items' table.")
+        if "ml_occasion" not in columns_clothing:
+            conn.execute(text("ALTER TABLE clothing_items ADD COLUMN ml_occasion TEXT"))
+            conn.commit()
+            print("Successfully added 'ml_occasion' column to 'clothing_items' table.")
+        if "ml_confidence" not in columns_clothing:
+            conn.execute(text("ALTER TABLE clothing_items ADD COLUMN ml_confidence REAL"))
+            conn.commit()
+            print("Successfully added 'ml_confidence' column to 'clothing_items' table.")
 except Exception as e:
     print(f"Error altering database tables in main.py: {e}")
 
 app = FastAPI(
     title="Style Match - Modular API",
-    description="Refactored backend for the Style Match fashion application.",
-    version="2.0.0"
+    description="Refactored backend for the Style Match fashion application with Scikit-Learn ML Classifier.",
+    version="2.1.0"
 )
 
 # CORS CONFIGURATION
@@ -56,13 +66,21 @@ app.include_router(auth.router)
 app.include_router(profile.router)
 app.include_router(wardrobe.router)
 app.include_router(ai.router)
+app.include_router(ml.router)
+
+# Top-level alias for convenience
+@app.post("/classify-occasion", tags=["Machine Learning Classification"])
+def classify_occasion_alias(data: ml.ClassifyOccasionRequest, db = Depends(ml.get_db)):
+    return ml.classify_clothing_occasion(data, db)
 
 @app.get("/")
 def root():
     """Health check endpoint to verify backend status."""
     return {
         "status": "online",
-        "version": "2.0.0",
-        "modules": ["auth", "profile", "wardrobe", "ai"],
-        "message": "Style Match Modular Backend is running."
+        "version": "2.1.0",
+        "modules": ["auth", "profile", "wardrobe", "ai", "ml"],
+        "ml_algorithm": "Decision Tree Classifier (scikit-learn)",
+        "message": "Style Match Modular Backend with Machine Learning is running."
     }
+

@@ -107,3 +107,11 @@ class SaveOutfitRequest(BaseModel):
 class UpdateOutfitTagsRequest(BaseModel):
     id: int
     tags: List[str]
+
+class ClassifyOccasionRequest(BaseModel):
+    category: str
+    subcategory: Optional[str] = ""
+    season: Optional[str] = "All Season"
+    color: Optional[str] = "Mixed"
+    item_id: Optional[int] = None
+

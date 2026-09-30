@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'dart:async';
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/wardrobe_cache_service.dart';
 import '../widgets/multi_item_review_sheet.dart';
+import '../widgets/ml_classification_card.dart';
 import 'trip_packing_screen.dart';
 import 'ai_outfit_screen.dart';
+
 
 
 class WardrobeScreen extends StatefulWidget {
@@ -928,8 +929,11 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) {
+      builder: (sheetContext) {
         return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(sheetContext).size.height * 0.90,
+          ),
           decoration: const BoxDecoration(
             color: Color(0xFFFAF7F2),
             borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
@@ -938,136 +942,162 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
             left: 24,
             right: 24,
             top: 16,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+            bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 24,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
-              
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    subcategory.isNotEmpty ? subcategory : category,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF171717),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  GestureDetector(
-                    onTap: () => _confirmDeleteItem(itemId),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFFFF0F0),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: Image.network(
-                  imagePath,
-                  width: double.infinity,
-                  height: 250,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    height: 250,
-                    color: const Color(0xFFF3F4F6),
-                    child: const Icon(Icons.broken_image, size: 50, color: Colors.grey),
-                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _buildMetaTag("Category: $category", Icons.checkroom),
-                  if (subcategory.isNotEmpty) _buildMetaTag("Style: $subcategory", Icons.style),
-                  _buildMetaTag("Color: $color", Icons.palette),
-                  _buildMetaTag("Season: $season", Icons.cloud),
-                  _buildMetaTag("Occasion: $occasion", Icons.local_activity),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              const Text(
-                "AI STYLIST RECOMMENDATION",
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFEEEEEE)),
-                ),
-                child: Text(
-                  stylingAdvice,
-                  style: const TextStyle(fontSize: 13, color: Colors.grey, height: 1.45),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => AIOutfitScreen(
-                          preselectedItemIds: [itemId],
+                
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        subcategory.isNotEmpty ? subcategory : category,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF171717),
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    );
-                  },
-                  icon: const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
-                  label: const Text(
-                    "Style Around This Item",
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0F766E),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    const SizedBox(width: 12),
+                    GestureDetector(
+                      onTap: () => _confirmDeleteItem(itemId, sheetContext),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFFFF0F0),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Image.network(
+                    imagePath,
+                    width: double.infinity,
+                    height: 250,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      height: 250,
+                      color: const Color(0xFFF3F4F6),
+                      child: const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                    ),
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 20),
+
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _buildMetaTag("Category: $category", Icons.checkroom),
+                    if (subcategory.isNotEmpty) _buildMetaTag("Style: $subcategory", Icons.style),
+                    _buildMetaTag("Color: $color", Icons.palette),
+                    _buildMetaTag("Season: $season", Icons.cloud),
+                    _buildMetaTag("Occasion: $occasion", Icons.local_activity),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // Machine Learning Classification Section
+                MLClassificationCard(
+                  itemId: itemId,
+                  category: category,
+                  subcategory: subcategory,
+                  season: season,
+                  color: color,
+                  initialOccasion: occasion,
+                  onOccasionUpdated: (newOccasion) {
+                    if (mounted) {
+                      setState(() {
+                        item["occasion"] = newOccasion;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 20),
+
+                const Text(
+                  "AI STYLIST RECOMMENDATION",
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFEEEEEE)),
+                  ),
+                  child: Text(
+                    stylingAdvice,
+                    style: const TextStyle(fontSize: 13, color: Colors.grey, height: 1.45),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AIOutfitScreen(
+                            preselectedItemIds: [itemId],
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
+                    label: const Text(
+                      "Style Around This Item",
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0F766E),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
     );
+
   }
 
   Widget _buildMetaTag(String label, IconData icon) {
@@ -1095,40 +1125,67 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
     );
   }
 
-  void _confirmDeleteItem(int itemId) {
+  void _confirmDeleteItem(int itemId, BuildContext sheetContext) {
+    if (itemId <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Cannot delete item: Invalid item ID")),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text("Remove Item", style: TextStyle(fontWeight: FontWeight.bold)),
           content: const Text("Are you sure you want to remove this item from your wardrobe?"),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               onPressed: () async {
-                Navigator.pop(context);
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
+                if (sheetContext.mounted) {
+                  Navigator.pop(sheetContext);
+                }
                 
                 setState(() => isLoadingClothes = true);
-                final success = await ApiService.deleteClothes(itemId);
-                if (!mounted) return;
-                if (success) {
-                  loadClothes(forceRefresh: true);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Clothes item deleted successfully"),
-                      backgroundColor: Color(0xFF0F766E),
-                    ),
-                  );
-                } else {
-                  setState(() => isLoadingClothes = false);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Failed to delete clothing item")),
-                  );
+                try {
+                  final success = await ApiService.deleteClothes(itemId);
+                  if (!mounted) return;
+                  if (success) {
+                    setState(() {
+                      clothes.removeWhere((item) => item["id"] == itemId.toString());
+                      isLoadingClothes = false;
+                    });
+                    if (userEmail != null && userEmail!.isNotEmpty) {
+                      await WardrobeCacheService.saveCachedClothes(userEmail!, clothes);
+                    }
+                    await loadClothes(forceRefresh: true);
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Clothes item deleted successfully"),
+                          backgroundColor: Color(0xFF0F766E),
+                        ),
+                      );
+                    }
+                  } else {
+                    setState(() => isLoadingClothes = false);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Failed to delete clothing item")),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    setState(() => isLoadingClothes = false);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Error deleting clothing item: $e")),
+                    );
+                  }
                 }
               },
               style: ElevatedButton.styleFrom(

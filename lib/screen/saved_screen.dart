@@ -7,10 +7,10 @@ class SavedScreen extends StatefulWidget {
   const SavedScreen({super.key});
 
   @override
-  State<SavedScreen> createState() => _SavedScreenState();
+  State<SavedScreen> createState() => SavedScreenState();
 }
 
-class _SavedScreenState extends State<SavedScreen> {
+class SavedScreenState extends State<SavedScreen> {
   List<dynamic> savedOutfits = [];
   bool isLoading = true;
   String? userEmail;

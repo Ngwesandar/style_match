@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, JSON, Boolean
+from sqlalchemy import Column, Integer, String, JSON, Boolean, Float
 from .database import Base
 
 class User(Base):
@@ -34,7 +34,10 @@ class ClothingItem(Base):
     occasion = Column(String)
     season = Column(String)
     color = Column(String)
-    stylist_note = Column(String, nullable=True) # New Field for intelligence persistence
+    stylist_note = Column(String, nullable=True) # Field for intelligence persistence
+    ml_occasion = Column(String, nullable=True) # Decision Tree predicted occasion
+    ml_confidence = Column(Float, nullable=True) # Decision Tree confidence score
+
 
 class SavedOutfit(Base):
     __tablename__ = "saved_outfits"

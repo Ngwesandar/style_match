@@ -14,6 +14,8 @@ from ..models import ClothingItem, SavedOutfit
 from ..schemas import ClothingSaveRequest, ClothingUpdateRequest, BatchClothingSaveRequest, SaveOutfitRequest, UpdateOutfitTagsRequest
 from ..services.image_service import ImageService
 from ..services.ai_service import AIService
+from ..ml.service import MLOccasionService
+
 
 # Configure Cloudinary
 cloudinary.config(
@@ -225,15 +227,27 @@ def batch_save_clothes(data: BatchClothingSaveRequest, db: Session = Depends(get
             season_val = (item.season or '').strip()
             canonical_season = season_map.get(season_val.lower(), item.season)
 
+            # Perform Decision Tree ML occasion prediction
+            ml_pred = MLOccasionService.classify(
+                category=canonical_category,
+                subcategory=item.subcategory or "",
+                season=canonical_season,
+                color=item.color or ""
+            )
+            ml_occ = ml_pred.get("predicted_occasion", item.occasion or "Casual")
+            ml_conf = ml_pred.get("confidence", 0.90)
+
             clothing = ClothingItem(
                 email=data.email,
                 image_path=item.image_path,
                 category=canonical_category,
                 subcategory=item.subcategory,
-                occasion=item.occasion,
+                occasion=item.occasion or ml_occ,
                 season=canonical_season,
                 color=item.color or '',
-                stylist_note=item.stylist_note or ''
+                stylist_note=item.stylist_note or '',
+                ml_occasion=ml_occ,
+                ml_confidence=ml_conf
             )
             db.add(clothing)
             db.flush()
@@ -275,20 +289,38 @@ def save_clothes(item: ClothingSaveRequest, db: Session = Depends(get_db)):
         # Preserve color as provided; if empty or blank, keep as is (empty string)
         color_val = item.color if item.color is not None else ''
 
+        # Perform Decision Tree ML occasion prediction
+        ml_pred = MLOccasionService.classify(
+            category=canonical_category,
+            subcategory=item.subcategory or "",
+            season=canonical_season,
+            color=color_val
+        )
+        ml_occ = ml_pred.get("predicted_occasion", item.occasion or "Casual")
+        ml_conf = ml_pred.get("confidence", 0.90)
+
         clothing = ClothingItem(
             email=item.email,
             image_path=item.image_path,
             category=canonical_category,
             subcategory=item.subcategory,
-            occasion=item.occasion,
+            occasion=item.occasion or ml_occ,
             season=canonical_season,
             color=color_val,
-            stylist_note=item.stylist_note
+            stylist_note=item.stylist_note,
+            ml_occasion=ml_occ,
+            ml_confidence=ml_conf
         )
         db.add(clothing)
         db.commit()
         db.refresh(clothing)
-        return {"success": True, "message": "Clothing item saved successfully", "id": clothing.id}
+        return {
+            "success": True,
+            "message": "Clothing item saved successfully",
+            "id": clothing.id,
+            "ml_occasion": ml_occ,
+            "ml_confidence": ml_conf
+        }
     except Exception:
         db.rollback()
         print("save_clothes failed", file=sys.stderr, flush=True)
@@ -327,6 +359,16 @@ def update_clothes(data: ClothingUpdateRequest, db: Session = Depends(get_db)):
         if data.stylist_note is not None:
             clothing.stylist_note = data.stylist_note
 
+        # Recompute ML occasion prediction on update
+        ml_pred = MLOccasionService.classify(
+            category=clothing.category or "Tops",
+            subcategory=clothing.subcategory or "",
+            season=clothing.season or "All Season",
+            color=clothing.color or ""
+        )
+        clothing.ml_occasion = ml_pred.get("predicted_occasion", clothing.occasion)
+        clothing.ml_confidence = ml_pred.get("confidence", 0.90)
+
         db.commit()
         db.refresh(clothing)
         return {"success": True, "message": "Clothing item updated successfully", "id": clothing.id}
@@ -341,6 +383,18 @@ def get_clothes(email: str = Query(...), db: Session = Depends(get_db)):
     items = db.query(ClothingItem).filter(ClothingItem.email == email).all()
     clothes_list = []
     for x in items:
+        ml_occ = x.ml_occasion
+        ml_conf = x.ml_confidence
+        if not ml_occ:
+            ml_res = MLOccasionService.classify(
+                category=x.category or "Tops",
+                subcategory=x.subcategory or "",
+                season=x.season or "All Season",
+                color=x.color or "Mixed"
+            )
+            ml_occ = ml_res.get("predicted_occasion", x.occasion or "Casual")
+            ml_conf = ml_res.get("confidence", 0.90)
+
         clothes_list.append({
             "id": x.id,
             "image_path": x.image_path,
@@ -349,9 +403,12 @@ def get_clothes(email: str = Query(...), db: Session = Depends(get_db)):
             "occasion": x.occasion,
             "season": x.season,
             "color": x.color or "",
-            "stylist_note": x.stylist_note or ""
+            "stylist_note": x.stylist_note or "",
+            "ml_occasion": ml_occ,
+            "ml_confidence": ml_conf
         })
     return {"success": True, "clothes": clothes_list}
+
 
 @router.delete("/delete-clothes/{item_id}")
 def delete_clothes(item_id: int, db: Session = Depends(get_db)):

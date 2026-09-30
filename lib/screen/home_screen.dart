@@ -21,10 +21,16 @@ class _HomeScreenState extends State<HomeScreen> {
   String? email;
   bool isProfileLoading = true;
 
-  final List<Widget> _screens = [
-    const AIOutfitScreen(),
-    WardrobeScreen(),
-    const SavedScreen(),
+  final GlobalKey<AIOutfitScreenState> _stylistKey = GlobalKey<AIOutfitScreenState>();
+  final GlobalKey<SavedScreenState> _savedScreenKey = GlobalKey<SavedScreenState>();
+
+  late final List<Widget> _screens = [
+    AIOutfitScreen(
+      key: _stylistKey,
+      onNavigateToWardrobe: () => setState(() => _currentIndex = 1),
+    ),
+    const WardrobeScreen(),
+    SavedScreen(key: _savedScreenKey),
   ];
 
   @override
@@ -127,7 +133,7 @@ class _HomeScreenState extends State<HomeScreen> {
         decoration: BoxDecoration(
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
             )
           ],
@@ -138,6 +144,11 @@ class _HomeScreenState extends State<HomeScreen> {
             setState(() {
               _currentIndex = index;
             });
+            if (index == 0) {
+              _stylistKey.currentState?.reloadWardrobe();
+            } else if (index == 2) {
+              _savedScreenKey.currentState?.loadSavedOutfits();
+            }
           },
           selectedItemColor: const Color(0xFF0F766E),
           unselectedItemColor: Colors.grey.shade400,

@@ -7,6 +7,7 @@ from ..models import User, UserPreference, ClothingItem
 from ..schemas import GenerateOutfitRequest, CompleteOutfitRequest, TripPackingRequest, RegenerateDayOutfitRequest
 from ..services.ai_service import AIService
 from ..services.insight_service import InsightService
+from ..ml.service import MLOccasionService
 
 router = APIRouter(tags=["AI Styling Engine"])
 
@@ -25,15 +26,31 @@ def generate_outfit(data: GenerateOutfitRequest, db: Session = Depends(get_db)):
     pref_fit = pref.fit if pref else "Regular"
     pref_style = pref.style if pref else "Casual"
 
-    items_json = json.dumps([{
-        "id": x.id,
-        "category": x.category,
-        "subcategory": x.subcategory,
-        "color": x.color,
-        "season": x.season,
-        "occasion": x.occasion,
-        "image_path": x.image_path
-    } for x in items], indent=2)
+    # Enrich wardrobe items with Decision Tree ML occasion tags for smarter stylist ranking
+    items_serialized = []
+    for x in items:
+        ml_occ = x.ml_occasion
+        if not ml_occ:
+            ml_res = MLOccasionService.classify(
+                category=x.category or "Tops",
+                subcategory=x.subcategory or "",
+                season=x.season or "All Season",
+                color=x.color or "Mixed"
+            )
+            ml_occ = ml_res.get("predicted_occasion", x.occasion or "Casual")
+
+        items_serialized.append({
+            "id": x.id,
+            "category": x.category,
+            "subcategory": x.subcategory,
+            "color": x.color,
+            "season": x.season,
+            "occasion": x.occasion,
+            "ml_occasion": ml_occ,
+            "image_path": x.image_path
+        })
+
+    items_json = json.dumps(items_serialized, indent=2)
 
     result = AIService.generate_outfit(
         user.height, user.size, pref_fit, pref_style,
@@ -42,6 +59,7 @@ def generate_outfit(data: GenerateOutfitRequest, db: Session = Depends(get_db)):
         data.style_item_ids or []
     )
     return result
+
 
 @router.post("/complete-outfit")
 def complete_outfit(data: CompleteOutfitRequest, db: Session = Depends(get_db)):

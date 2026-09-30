@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/weather_service.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../services/wardrobe_cache_service.dart';
 
 class TripPackingScreen extends StatefulWidget {
   const TripPackingScreen({super.key});
@@ -271,7 +272,8 @@ class _TripPackingScreenState extends State<TripPackingScreen> {
   }
 
   Future<void> saveOutfitToLookbook(String concept, String description, List<int> itemIds) async {
-    if (userEmail == null) return;
+    final email = userEmail ?? await AuthService.getUserEmail();
+    if (email == null || email.isEmpty) return;
     
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -281,7 +283,7 @@ class _TripPackingScreenState extends State<TripPackingScreen> {
     );
 
     final success = await ApiService.saveOutfit(
-      userEmail!,
+      email,
       concept,
       "All Season",
       itemIds,
@@ -291,6 +293,11 @@ class _TripPackingScreenState extends State<TripPackingScreen> {
 
     if (!mounted) return;
     if (success) {
+      ApiService.getSavedOutfits(email).then((freshOutfits) {
+        if (freshOutfits.isNotEmpty) {
+          WardrobeCacheService.saveCachedSavedOutfits(email, freshOutfits);
+        }
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Saved to Lookbook! ❤️"),
